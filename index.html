@@ -1508,6 +1508,13 @@ svg.radar { flex: 1; min-height: 0; width: 100%; display: block; }
 .chargeacts .sub2 { font-size: 12.5px; line-height: 1.15; }
 .chargeacts .orsep { margin: -4px 0 -3px; font-size: 16px; }
 
+/* ---- COUNTER! stamped over the fighter whose guard turned the blow (owner, 23 Nov) ---- */
+.ctrword { position: absolute; z-index: 34; transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap; font: 400 54px/1 var(--f-title); letter-spacing: .06em; text-transform: uppercase;
+  background-image: linear-gradient(#ffffff 0%, #bfe8ff 45%, #3aa0ff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(3px 3px 0 #05080f) drop-shadow(-2px -2px 0 #05080f);
+  animation: ctrstamp 1.05s ease-out forwards; }
+@keyframes ctrstamp { 0% { opacity: 0; transform: translate(-50%, -100%) scale(2.1) rotate(-6deg); } 12% { opacity: 1; transform: translate(-50%, -100%) scale(.92) rotate(-3deg); } 20% { transform: translate(-50%, -100%) scale(1.04) rotate(-3deg); } 28%, 78% { opacity: 1; transform: translate(-50%, -100%) scale(1) rotate(-3deg); } 100% { opacity: 0; transform: translate(-50%, -130%) scale(1) rotate(-3deg); } }
+@media (prefers-reduced-motion: reduce) { .ctrword { animation: popfade 1.05s linear forwards; } }
+
 </style>
 </head>
 <body>
@@ -3463,6 +3470,9 @@ const BOT_ROSTER = [{"id":55,"name":"Bot56","moves":"blockHeavy","chainStyle":"l
   const MOVE_ART = {
     swordsman: {
       basic: { folder: 'basic', frames: 10, first: 0, w: 216, sx: 24, ms: 90, hit: 2 },
+      // his thrust caught on a guard that stands closer than its full length (Harry, owner kept 25 Nov: the Paladin's raised palm):
+      // 00 the catch (tip on the palm, at x 188 y 40), 01 the glance (blade knocked up); guardMeet plays them instead of his frame 02
+      basicBlocked: { folder: 'basic-blocked', frames: 2, first: 0, w: 216, sx: 24, ms: 90, cross: [166, 44] },      // (cross: the burst, at the palm's lower edge on the blade, Harry)
       heavy: { folder: 'heavy', frames: 9, first: 0, w: 216, sx: 24, ms: 90, hit: 3 },
       block: { folder: 'block', frames: 10, first: 0, w: 216, sx: 24, ms: 100, hit: 5, guard: [2, 8] },
       hurt: { folder: 'hurt', frames: 9, first: 0, w: 216, sx: 24, ms: 90 },
@@ -3738,17 +3748,19 @@ const BOT_ROSTER = [{"id":55,"name":"Bot56","moves":"blockHeavy","chainStyle":"l
   // fighter with no counter frames, a fallback built from their Block (to its hit frame, held) and their Basic (from just before its
   // blow, at 70 % of its speed). Switch counters off with COUNTER.on = false (then a winning Block plays as before).
   const COUNTER = { on: true, hold: 2, pace: 0.7 };
+  // (23 Nov, owner) the Swordsman's and the Paladin's Basics redrawn higher (board 27, Harry) so a blow into a counter meets the guard:
+  // their contact points and reaches below are the new frames'
   // Clashes (design/pixel-fable/sprites/clashes/manifest.json, approved 14 Nov): both picked Basic, or both Heavy, and both have their
   // moves frame by frame. Each plays their own attack, timed so the two contact moments fall together; a two-coloured burst (left
   // fighter's colour, right fighter's) marks where they meet, and both are nudged back. Positions are in the attacker's own picture.
   //   melee: the blade's contact frame and point; projectile: the frame it leaves and its start (head tip, or a ball's centre), then 3
   //   steps to the clash point; beam: it switches on at contact (frame `on`) and reaches only to the clash point, at its own height.
   const CLASH = {
-    swordsman: { colour: 'gold', basic: { kind: 'melee', contact: 2, point: [215, 65], slideMax: 28 }, heavy: { kind: 'melee', contact: 3, point: [203, 100], slideMax: 40 } },
+    swordsman: { colour: 'gold', basic: { kind: 'melee', contact: 2, point: [213, 30], slideMax: 28 }, heavy: { kind: 'melee', contact: 3, point: [203, 100], slideMax: 40 } },
     archer: { colour: 'green', basic: { kind: 'projectile', leave: 4, point: [161, 40], tipStart: true }, heavy: { kind: 'projectile', leave: 8, point: [172, 40], tipStart: true } },
     mage: { colour: 'purple', basic: { kind: 'projectile', leave: 3, point: [156, 27] }, heavy: { kind: 'beam', on: 7, point: [164, 43] } },
     // (approved 14 Nov) the Paladin: against an arrow, a ball or a beam his Basic meets it on the upswing of frame 5 at chest height (vsShot)
-    paladin: { colour: 'orange', basic: { kind: 'melee', contact: 4, point: [205, 91], slideMax: 28, vsShot: { contact: 5, point: [163, 48] } }, heavy: { kind: 'melee', contact: 6, point: [204, 46], slideMax: 40 } },
+    paladin: { colour: 'orange', basic: { kind: 'melee', contact: 4, point: [212, 33], slideMax: 28, vsShot: { contact: 5, point: [195, 37] } }, heavy: { kind: 'melee', contact: 6, point: [204, 46], slideMax: 40 } },
     // (approved 16 Nov, board 17) the Demon: the tip of his shadow claws, per look (byLook: the look of the move he plays; his pictures put
     // his slot at x 44); his bursts are red
     demon: { colour: 'red', basic: { kind: 'melee', contact: 8, point: [179, 30], slideMax: 28 }, heavy: { kind: 'melee', contact: 8, point: [184, 107], slideMax: 40 },
@@ -3807,7 +3819,8 @@ const BOT_ROSTER = [{"id":55,"name":"Bot56","moves":"blockHeavy","chainStyle":"l
   // Basic or Heavy at the far end; dashBack home. reach: his weapon tip from his sprite's left edge on the strike frame; the travel puts
   // it 14 px inside the opponent's body. counter: the guard at his spot (frames 0..guardTo), then dash frames 01-05 by `fractions`, then
   // the rest of the counter at the far end. feetX: his feet in his sprite (for the dust).
-  const DASH = { swordsman: { reach: { basic: 191, heavy: 189, counter: 191 }, guardTo: 5, feetX: 49 }, paladin: { reach: { basic: 181, heavy: 181, counter: 181 }, guardTo: 3, feetX: 56 },
+  // (the Paladin's guardTo 5: his palm, 1-4, and its lowering, 5, all at his spot; owner, 25 Nov: he ran, then blocked again, then struck)
+  const DASH = { swordsman: { reach: { basic: 189, heavy: 189, counter: 191 }, guardTo: 5, feetX: 49 }, paladin: { reach: { basic: 188, heavy: 181, counter: 181 }, guardTo: 5, feetX: 56 },
     // the Demon (15 Nov): his claws' reach per look ('<move>@<look>', measured on the hit frames), his counter's guard to frame 8
     demon: { reach: { basic: 141, heavy: 146, counter: 119, 'basic@winged': 141, 'heavy@winged': 136, 'counter@winged': 155, 'basic@demonic': 162, 'heavy@demonic': 153, 'counter@demonic': 156,
       'kb@elegant': 103, 'kb@winged': 105, 'kb@demonic': 122 }, guardTo: 8, feetX: 49,
@@ -4472,7 +4485,7 @@ const BOT_ROSTER = [{"id":55,"name":"Bot56","moves":"blockHeavy","chainStyle":"l
     // when this fighter's blow lands, in ms at normal speed from the start of the move (key: basic, heavy, block, charged; to: the
     // opponent): an arrow's arrival, else the hit frame; a winning Block that hits back (COUNTER) lands with its Basic
     hitTime(key, to) {
-      if (key === 'block' && to && COUNTER.on && this.counterPlan(to)) return this.counterPlan(to).hit;
+      if (key === 'block' && to && COUNTER.on && this.counterPlan(to)) return this.counterPlan(to).hit + this.counterWait(to);
       const A = this.moveArt(key); if (!A) return null;
       const seq = key === 'charged' && A.charge ? this.attackSeq(A) : seqOf(A);
       if (key === 'charged' && A.ring && seq.includes(A.ring.from)) return timeTo(A, seq, seq.indexOf(A.ring.from)) + A.ring.hit * A.ring.ms;      // (the Demonic Demon: his lance ring's explosion)
@@ -4497,10 +4510,17 @@ const BOT_ROSTER = [{"id":55,"name":"Bot56","moves":"blockHeavy","chainStyle":"l
       const sHit = S.arrow ? this.arrowPlan(S, to, sseq, COUNTER.pace).hit : timeTo(S, sseq, sseq.indexOf(S.hit), COUNTER.pace);
       return { bseq, sseq, guard: timeTo(B, bseq, B.hit), part: bTime, hit: bTime + sHit };
     }
+    // how long this counter waits before it starts, so its guard takes a melee Basic on the blow's contact frame (guardMeet)
+    counterWait(to) { const M = guardMeet(to, this); return M ? M.ctrWait : 0; }
     counter(to, o = {}) {
       const P = this.counterPlan(to); if (!P) return null;
       const t = o.t !== undefined ? o.t : (G && G.skip ? 0 : speed);
       if (!(t > 0)) return { ...NOMOVE };
+      const wait = o.wait !== undefined ? o.wait : this.counterWait(to);
+      if (wait > 0) {      // (the blow is still on its way: the counter starts so its guard meets it)
+        const go = sleep(wait * t).then(() => this.dead || !one('#arena') ? null : this.counter(to, { t, wait: 0 }));
+        return { done: go.then(c => c && c.done), hitMs: (P.hit + wait) * t, guardMs: (P.guard + wait) * t };
+      }
       if (P.own && P.dash) return { done: this.dashCounter(to, t), hitMs: P.hit * t, guardMs: P.guard * t };
       if (P.own) { const c = this.play('counter', { t, to, part: 'counter' }); return { done: c.done, hitMs: P.hit * t, guardMs: P.guard * t }; }
       const first = this.play('block', { t, seq: P.bseq, clang: P.guard * t, part: 'counter-block' });
@@ -5102,6 +5122,14 @@ const BOT_ROSTER = [{"id":55,"name":"Bot56","moves":"blockHeavy","chainStyle":"l
     async runIn(name, to, t) {
       if (!(t > 0) || !this.moveArt(name) || !this.dashes(to, name)) return false;
       const x = this.dashTravel(to, name), D = this.dustPlan(this.lastDash.travel, { 1: [-10, false], 3: [-14, false], 6: [16, true] }, { 1: [10, true], 6: [-12, false] });
+      this.outRun = { x, D };
+      await this.runDash('dashIn', range(1, 8), DASH.inFrac.slice(1), 0, x, t, D.in);
+      return !this.dead;
+    }
+    // his run in against a counter's guard: just far enough (px) for his tip to meet the guard (guardMeet's gap), not into the body
+    async runInBy(px, t) {
+      if (!(t > 0) || !(px > 0) || !this.canDash()) return false;
+      const x = this.dir * px, D = this.dustPlan(px / this.figBox().k, { 1: [-10, false], 3: [-14, false], 6: [16, true] }, { 1: [10, true], 6: [-12, false] });
       this.outRun = { x, D };
       await this.runDash('dashIn', range(1, 8), DASH.inFrac.slice(1), 0, x, t, D.in);
       return !this.dead;
@@ -5925,16 +5953,31 @@ const BOT_ROSTER = [{"id":55,"name":"Bot56","moves":"blockHeavy","chainStyle":"l
       const w = Number(m[3]) - 1, l = 1 - w, mvs = [m[1], m[2]], mv = mvs[w], key = p => mvs[p].toLowerCase();
       revealMoves(m[1], m[2]);
       // a losing melee Basic or Heavy (the Demon first, then the Swordsman and the Paladin, owner 16 Nov): he runs in first, unless the
-      // winner runs to him (their own attack, or a counter with a run)
-      const wRuns = key(w) === 'block' ? !!(COUNTER.on && F[w].counterPlan(F[l]) && F[w].counterPlan(F[l]).dash) : F[w].hasMove(key(w)) && F[w].canDash() && F[w].dashes(F[l], key(w));
-      const out = F[l].canDash() && t > 0 && (key(l) === 'basic' || key(l) === 'heavy') && !wRuns ? await F[l].runIn(key(l), F[w], t) : false;
+      // winner runs to him with their own attack. Against a winning Block he always runs in (owner, 23 Nov: he swung from his place and
+      // the counter came after): the guard takes his blow up close, and the counter hits back from there (a short step if still out of reach)
+      const wRuns = key(w) === 'block' ? false : F[w].hasMove(key(w)) && F[w].canDash() && F[w].dashes(F[l], key(w));
+      // a melee Basic into a counter's guard (owner, 25 Nov: the Swordsman's thrust reached the Paladin's face): out of reach, he runs in
+      // just far enough for his tip to meet the guard (not into the body, as a hit would). Already in reach, he thrusts from his spot and
+      // the guard is drawn in front of his blade (below: the part past the palm goes behind the arm; owner: no step back to attack)
+      const near = F[l].canDash() && t > 0 && key(w) === 'block' && COUNTER.on && key(l) === 'basic' && F[w].hasMove('block') ? guardMeet(F[l], F[w]) : null;
+      let out = false;
+      if (near) out = near.gap < -8 * F[l].figBox().k ? await F[l].runInBy(-near.gap, t) : false;
+      else out = F[l].canDash() && t > 0 && (key(l) === 'basic' || key(l) === 'heavy') && !wRuns ? await F[l].runIn(key(l), F[w], t) : false;
       if (!live()) return;
       const anim = F[w].hasMove(key(w)), hit = hitAt(w, key(w));
       const dm = raw.match(/: dice ([\d+]+) = (\d+) damage/);          // the winner's damage dice land just before the hit
       if (dm) showRoll(w, sidesIn(prev, now, w, 'duel'), dm[1].split('+').map(Number), { t, land: anim ? Math.max(120, hit - 60) : mv === 'Block' ? 760 : 300, hold: 1000, total: true, sfxDelay: 120 });
       // a fighter with frame-by-frame moves plays the move picked, win or lose; the winner's blow lands on its hit frame
-      const lc = F[l].hasMove(key(l)) ? F[l].play(key(l), { t, clang: hit * t, to: F[w] }) : null;      // (the loser's attack stays at their spot: only the winner dashes in)      // (a Block's clang: when the blow meets it)
+      // a melee Basic into a counter: the blow and the guard meet on one moment, with the clash burst (guardMeet; the hit above includes the counter's wait)
+      const meet = anim && key(w) === 'block' && COUNTER.on && t > 0 && key(l) === 'basic' && F[l].hasMove('basic') ? guardMeet(F[l], F[w]) : null;
+      if (meet) { const c = G.chars.map(k => CLASH[k].colour), lf = F[0].dir > 0 ? 0 : 1; burstFrames(c[lf], c[1 - lf]); setTimeout(() => { if (live()) guardBurst(F[l], meet, t); }, meet.at * t); }
+      const rb = meet && meet.rebound ? { seq: meet.rebound, ...(meet.blocked ? { draw: meet.blocked.draw } : {}) } : {};      // (his blow stops on the guard and bounces back: guardMeet)
+      const lc = !F[l].hasMove(key(l)) ? null : meet && meet.atkWait ? { done: sleep(meet.atkWait * t).then(() => live() ? F[l].play(key(l), { t, to: F[w], ...rb }).done : null) }
+        : F[l].play(key(l), { t, clang: hit * t, to: F[w], ...rb });      // (a Block's clang: when the blow meets it)
       const ctr = anim && key(w) === 'block' && COUNTER.on ? F[w].counter(F[l], { t }) : null;      // a winning Block hits back with a Basic (COUNTER)
+      if (meet && meet.back > 0) { const front = () => { if (live()) { F[w].el.style.zIndex = '6'; F[l].el.style.zIndex = '5'; } };      // (the guard over his blade)
+        front(); setTimeout(front, meet.atkWait * t + 20); setTimeout(front, meet.at * t); setTimeout(() => { if (live() && F[w].el.style.zIndex === '6') F[w].el.style.zIndex = '5'; }, (meet.at + 6 * CLASH_STEP) * t); }
+      if (ctr) setTimeout(() => { if (live()) counterWord(F[w], t); }, meet ? meet.at * t : ctr.guardMs !== undefined ? ctr.guardMs : 0);      // (the word as the guard turns the blow)
       const hitBy = ctr ? ctr.done : anim ? (key(w) === 'block' ? F[w].play(key(w), { t, clang: hit * t, to: F[l] }) : F[w].dashAttack(key(w), { t, clang: hit * t, to: F[l] })).done : mv === 'Block' ? F[w].pose('blocking', 700 * t).then(() => F[w].pose('attacking', 800 * t)) : F[w].pose('attacking', 1000 * t);
       await sleep(hit * t); if (!live()) return;
       G.held = null;
@@ -6856,6 +6899,73 @@ const BOT_ROSTER = [{"id":55,"name":"Bot56","moves":"blockHeavy","chainStyle":"l
     }, P.T * t));
     await Promise.all([...jobs, showBurst]);
     return true;
+  }
+  // A melee Basic into a counter (owner, 23 Nov: "it feels like the attack whiffs, not a clash"): the blow lands on the guard on the
+  // same moment (the blow's contact frame, CLASH, on the counter's guardHit; whichever comes first waits), and the clash burst marks
+  // where they meet. att: the attacker, def: the counter. atkWait / ctrWait: ms (normal speed) each waits; at: when they meet. null: no
+  // melee blow (an arrow, a ball: they fly into the guard as before).
+  function guardMeet(att, def) {
+    if (!G || !G.fighters || !G.chars || !att || !def || !COUNTER.on) return null;
+    const p = G.fighters.indexOf(att); if (p < 0 || G.fighters[1 - p] !== def) return null;
+    const C = CLASH[G.chars[p]], A = att.moveArt('basic'), lk = C && C.byLook && A && A.look, s = C && ((lk && C.byLook[lk]) || C).basic;
+    if (!s || s.kind !== 'melee' || !A || !CLASH[G.chars[1 - p]]) return null;
+    const P = def.counterPlan(att); if (!P) return null;
+    const seq = seqOf(A), i = seq.indexOf(s.contact), contact = timeTo(A, seq, i < 0 ? s.contact : i);
+    const gap = guardOvershoot(att, def, A, s), BB = gap > 0 && att.moveArt('basicBlocked');
+    // a blade that would go past the guard, with his blocked frames: the catch (held two beats) and the glance in place of the contact
+    // frame, then back. The catch stands in for the contact frame (so its sound still lands on it), 101 is the glance; the burst where
+    // the blade crosses the guard's front
+    const blocked = BB && BB.img ? { seq: reboundSeq(A, s.contact).flatMap(f => f === s.contact ? [f, f, 101] : [f]), draw: (ctx, f) => { const im = f === s.contact ? BB.img[0] : f === 101 ? BB.img[1] : A.img[f]; if (im) ctx.drawImage(im, 0, 0); }, y: BB.cross[1] } : null;
+    return { s, A, contact, atkWait: Math.max(0, P.guard - contact), ctrWait: Math.max(0, contact - P.guard), at: Math.max(contact, P.guard), rebound: blocked ? blocked.seq : reboundSeq(A, s.contact), blocked, gap, back: Math.max(0, gap) };
+  }
+  // how far (arena px) the blade's tip would go PAST the front of the guard (owner, 25 Nov: the Swordsman's thrust reached the
+  // Paladin's face, past his palm: close up, his full stretch is longer than the gap). The guard is then drawn over his blade and the
+  // burst sits on the guard's front; a tip that falls short (gap < 0): he runs in just that far (Fighter.runInBy). The guard's front: its frontmost pixel near the tip's height.
+  const GUARD_FRONT = {};
+  function guardFront(img, y) {
+    const id = img && img.src + '@' + y; if (!img || !img.naturalWidth) return null; if (id in GUARD_FRONT) return GUARD_FRONT[id];
+    try {
+      const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight; const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+      const y0 = Math.max(0, y - 8), d = x.getImageData(0, y0, c.width, Math.min(c.height - y0, 17)).data; let hi = -1;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 40) hi = Math.max(hi, (i >> 2) % c.width);
+      return (GUARD_FRONT[id] = hi < 0 ? null : hi);
+    } catch (e) { return (GUARD_FRONT[id] = null); }
+  }
+  function guardOvershoot(att, def, A, s) {
+    const CA = def.moveArt('counter'), B = def.moveArt('block'), G0 = CA && CA.guardHit !== undefined ? CA : B, f = G0 === CA ? CA.guardHit : B && B.hit;
+    if (!G0 || f === undefined || !G0.img || !G0.img[f]) return 0;
+    const ab = att.figBox(A.sx), db = def.figBox(G0.sx), tip = ab.x(s.point[0]), py = ab.y(s.point[1]);
+    const col = guardFront(G0.img[f], Math.round((py - db.T) / db.k)); if (col === null) return 0;
+    return Math.round((tip - db.x(col)) * att.dir - 2 * ab.k);      // (the tip may sink 2 art px into the hand; below 0: it falls short)
+  }
+  // the rebound (owner, 23 Nov: "the swordsman hit the face of the paladin anyway"): a blow stopped by a guard does not go on through
+  // it. His frames run up to the contact, then run straight back (every other frame)
+  function reboundSeq(A, contact) {
+    const seq = seqOf(A), i = seq.indexOf(contact); if (i < 0) return null;
+    const up = seq.slice(0, i + 1), back = up.slice(0, -1).reverse();
+    return [...up, ...back.filter((f, j) => j % 2 === 0 || j === back.length - 1)];      // (no hold on the contact: a counter that runs in would meet the blade)
+  }
+  // the word COUNTER, stamped over the fighter whose guard turned the blow (owner, 23 Nov: "a counter word to confirm it was a counter")
+  // (between the two fighters, at chest height: over a head it ran into the signs at the top of the stage)
+  function counterWord(F, t) {
+    const arena = one('#arena'), o = G && G.fighters && G.fighters.find(x => x !== F); if (!arena || !(t > 0) || !F || !o || !F.el.isConnected) return;
+    const b = F.figBox(), a = o.figBox(), el = document.createElement('div'); el.className = 'ctrword'; el.textContent = 'Counter!';
+    el.style.left = (b.cx + a.cx) / 2 + 'px'; el.style.top = b.T + (b.B - b.T) * .3 + 'px';
+    arena.appendChild(el); arena.dataset.counterWord = 1;
+    setTimeout(() => { el.remove(); if (!one('.ctrword', arena)) delete arena.dataset.counterWord; }, 1100 * Math.max(1, t));
+  }
+  // the burst where the blow meets the guard (the attacker's blade tip on its contact frame, where he stands), both nudged back
+  async function guardBurst(att, M, t) {
+    const arena = one('#arena'), F = G.fighters; if (!arena || !(t > 0) || !M) return;
+    const left = F[0].dir > 0 ? 0 : 1, colour = [0, 1].map(i => CLASH[G.chars[i]].colour), burst = await burstFrames(colour[left], colour[1 - left]);
+    if (!arena.isConnected || G.fighters !== F) return;
+    const box = att.figBox(M.A.sx), k = box.k, x = box.x(M.s.point[0]) - att.dir * (M.back || 0), y = box.y(M.blocked ? M.blocked.y : M.s.point[1]);      // (a blade past the guard: the burst on the guard's front)
+    const cv = document.createElement('canvas'); cv.className = 'fclash guard'; cv.width = CLASH_BURST.w; cv.height = CLASH_BURST.h;
+    Object.assign(cv.style, { left: x - 48 * k + 'px', top: y - 48 * k + 'px', width: 96 * k + 'px', height: 96 * k + 'px' });
+    const cx = cv.getContext('2d'); cx.imageSmoothingEnabled = false; arena.appendChild(cv); arena.dataset.guardClash = 1;
+    if (!stillMotion()) F.forEach(f => f.mover.animate([{ transform: 'translateX(0)' }, { transform: `translateX(${-f.dir * 4 * k}px)` }, { transform: 'translateX(0)' }], { duration: 2 * CLASH_STEP * t }));      // (the rebound is in his frames: no push, owner 25 Nov: "he slides when he hits")
+    await runFrames('guardClash', [1, 2, 3, 4, 5, 6], CLASH_STEP, t, f => { cx.clearRect(0, 0, 96, 96); if (burst[f]) cx.drawImage(burst[f], 0, 0); }).done;
+    cv.remove(); delete arena.dataset.guardClash;
   }
   // a small white spark on a fighter (a counter's hit back)
   function spark(F) {
