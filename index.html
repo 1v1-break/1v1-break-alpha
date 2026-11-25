@@ -4952,7 +4952,9 @@ const BOT_ROSTER = [{"id":55,"name":"Bot56","moves":"blockHeavy","chainStyle":"l
     }
     // a picture fitted to the victim standing on the RIGHT (the Demonic box, his lance ring: their slot at (A.ox, A.oy) of it), on this
     // fighter: as drawn when they stand on the right, mirrored (and placed by 120 - w - offset) when they stand on the left
-    fitLayer(cls, A) { const cv = this.layer(cls, A.w, A.w - (A.ox || 0) - 120, A.h || 144, (A.oy || 0) + 140); cv.style.transform = this.dir > 0 ? 'scaleX(-1)' : ''; return cv; }
+    // (a picture fitted to a victim on the right, where the stage mirrors every picture of the fighter on the right; on the left it is
+    // shown as drawn, at the mirrored place. Owner, 25 Nov: the Demon's net sat off-centre on the left, flipped twice)
+    fitLayer(cls, A) { const cv = this.layer(cls, A.w, A.w - (A.ox || 0) - 120, A.h || 144, (A.oy || 0) + 140); cv.style.transform = ''; return cv; }
     // the pin-down cage this caster drops on `to`: one sized for them (the Demon as a victim: by his look), else the caster's plain one
     // who they are as a cage's victim: their character, the Demon by his look ('demon-<look>': each cage is fitted to each look)
     victimKey(f = this) { return f.key === 'demon' ? 'demon-' + (f.form || 'elegant') : f.key; }
@@ -6163,6 +6165,8 @@ const BOT_ROSTER = [{"id":55,"name":"Bot56","moves":"blockHeavy","chainStyle":"l
     if (real) real.style.visibility = '';
     await kbClose(el);
   }
+  // (owner, 25 Nov) the blows before the strike hurt them (preHit); the final hit drops them at once, as it lands: the fall frame
+  const kbFallsAt = sc => sc.strike;
   // A right guess by a fighter with a stage Killing Blow (MOVE_ART kbStage): the card turns over in the dark scene as before, then
   // the scene lifts and the blow happens on the stage itself, with the real opponent. A banner keeps the words over the arena without
   // hiding the fighters. He walks to his start spot by the opponent (frames 00-03), the frames play over them; on the strike frame the
@@ -6199,7 +6203,8 @@ const BOT_ROSTER = [{"id":55,"name":"Bot56","moves":"blockHeavy","chainStyle":"l
     // his sounds: the wind-up, the strike for the weak point named (its impact on the strike frame), the fall with the opponent's fall
     const wp = String(sc.folder).split('-')[2], mine = hasOwnSound(G.chars[att], 'kbStage');      // (killing-blow-<wp>-stage)
     if (mine) sfxStop('kb-scene');
-    const ids = ownSounds(G.chars[att], 'kbStage', { frames: sc.frames, first: K.first }, K.ms * speed, { wp, strike: sc.strike, falls: sc.falls });
+    const falls = kbFallsAt(sc);      // (they fall as the final hit lands: owner, 25 Nov)
+    const ids = ownSounds(G.chars[att], 'kbStage', { frames: sc.frames, first: K.first }, K.ms * speed, { wp, strike: sc.strike, falls });
     // kb-right (the announcer moment) after his strike: scheduled with his sounds on the same clock, so it never drifts from the strike
     const krAt = mine && !G.skip && speed > 0 ? sc.strike * K.ms * speed + KB_RIGHT_AFTER : null;
     if (krAt !== null) cue('kb-right', krAt, true);
@@ -6209,11 +6214,10 @@ const BOT_ROSTER = [{"id":55,"name":"Bot56","moves":"blockHeavy","chainStyle":"l
       if (krAt === null) cue('kb-right', mine ? KB_RIGHT_AFTER : 0, true);
       else if (cutShort) { sfxStop('kb-right'); cue('kb-right', 0, true); }      // hurried before the strike: it comes now
       const fl = document.createElement('i'); fl.className = 'kbstageflash'; fl.style.setProperty('--t', speed); arena.appendChild(fl); setTimeout(() => fl.remove(), 700 * speed);
-      D.pose('hurt', 600 * speed, { sound: false });
     };
     const fall = t => { if (fell) return; fell = true; D.die(t, sc.fall || 'death', 1, !mine); };      // (his Killing Blow has its own fall sound)
     const pre = (K.preHits && K.preHits[wp]) || [], hitDone = new Set();      // his combo's blows before the strike: the opponent reacts to each
-    const run = runFrames('kbStage', Array.from({ length: sc.frames }, (_, i) => i), K.ms, speed, f => { draw(f); if (pre.includes(f) && !hitDone.has(f) && f < sc.strike) { hitDone.add(f); D.preHit(speed); } if (f >= sc.strike) strike(); if (f >= sc.falls) fall(speed); });
+    const run = runFrames('kbStage', Array.from({ length: sc.frames }, (_, i) => i), K.ms, speed, f => { draw(f); if (pre.includes(f) && !hitDone.has(f) && f < sc.strike) { hitDone.add(f); D.preHit(speed); } if (f >= sc.strike) strike(); if (f >= falls) fall(speed); });
     while (!run.stopped && !hurry && !G.skip && speed > 0 && arena.isConnected) await sleep(50);
     const cut = !run.stopped;
     if (cut) ids.forEach(id => sfxStop(id));                    // hurried: his sounds stop with the frames
@@ -6261,7 +6265,7 @@ const BOT_ROSTER = [{"id":55,"name":"Bot56","moves":"blockHeavy","chainStyle":"l
       if (wp === 'throat' && D.hasMove('chokedGrab')) {      // grabbed and lifted (10 px from the ground, 30 px from the air), struggling
         lift = (look === 'elegant' ? 10 : 30) * D.artScale(); D.mover.style.translate = `0 ${-lift}px`;
         const g = D.play('chokedGrab', { t, sound: false }); if (g) g.done.then(() => { if (!D.dead && A.move) held = D.play('chokedStruggle', { t, sound: false, loopFrom: 0 }); });
-      } else D.pose('hurt', 600 * t, { sound: false });
+      } else D.die(t, wp === 'head' ? 'deathFaceDown' : 'death', 1, true);      // (down as the final hit lands: owner, 25 Nov)
     };
     const c = A.play('kb-' + wp, { t, part: 'kbDemon', onFrame: f => { if (K.pre.includes(f) && f < K.strike) { D.preHit(t); if (dm) kbBoom(A, D, wp, 0.55); } if (f >= K.strike) strike(); } });
     while (c && !c.stopped && !hurry && !G.skip && arena.isConnected) await sleep(50);
@@ -6303,7 +6307,7 @@ const BOT_ROSTER = [{"id":55,"name":"Bot56","moves":"blockHeavy","chainStyle":"l
     const mine = hasOwnSound(G.chars[att], 'kbShoot'); if (mine) sfxStop('kb-scene');
     const pinFor = f => {      // the pinned arrows on frame f: a landing (with a jolt), then the arrows, then the threads shimmering
       const lands = K.quick.leaves.map(x => x + K.quick.flightFrames), i = lands.indexOf(f);
-      if (i >= 0) { if (!pinned) { D.mover.appendChild(pin); pinned = true; } showPin(2 * i); jolt(); sfx('basic-hit', { pri: 0, gap: 0 }); return; }
+      if (i >= 0) { if (!pinned) { D.mover.appendChild(pin); pinned = true; } showPin(2 * i); D.preHit(t); jolt(); return; }      // (each arrow: their hurt, with its hit sound, then the knock's flash)
       if (!pinned || f >= K.strike) return;
       if (f < lands[2]) showPin(f < lands[1] ? 1 : 3); else showPin(5 + ((f - lands[2]) % 2));
     };
@@ -6449,7 +6453,7 @@ const BOT_ROSTER = [{"id":55,"name":"Bot56","moves":"blockHeavy","chainStyle":"l
       arena.dataset.kbframe = f; drawDragon(f);
       if (f >= 14 && !dreaded && f < sc.strike) { dreaded = true; const DA = D.moveArt('kbDread'); if (DA) D.play('kbDread', { t, seq: range(0, DA.frames - 1), loopFrom: DA.frames - 1, part: 'kbDread' }); }      // (Harry, 14 Nov) the fireball gathers: they dread, held to the strike
       if (f >= sc.strike) strike(false);
-      if (f >= sc.falls) fall(t);
+      if (f >= kbFallsAt(sc)) fall(t);      // (they fall as the final hit lands)
     } });
     while (!run.stopped && !hurry && !G.skip && t > 0 && arena.isConnected && A.move === run) await sleep(50);
     const cut = !run.stopped && A.move === run;
